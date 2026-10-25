@@ -59,10 +59,12 @@ class Transaction:
         return cls(data["date"], data["category"], data["amount"], data.get("comment", ""))
 
 class BudgetTracker:
-    """Список трат и операции над ним: добавить, удалить, посчитать, найти."""
+    """Список трат и операции над ним: добавить, изменить, удалить, посчитать, найти."""
 
-    def __init__(self, transactions: list[Transaction] | None = None) -> None:
+    def __init__(self, transactions: list[Transaction] | None = None, monthly_limit: float | None = None) -> None:
         self.transactions: list[Transaction] = list(transactions) if transactions else []
+        self.monthly_limit: float | None = None
+        self.set_limit(monthly_limit)
 
     def __len__(self) -> int:
         return len(self.transactions)
@@ -70,15 +72,31 @@ class BudgetTracker:
     def __str__(self) -> str:
         return f"BudgetTracker: записей {len(self)}, всего {self.total():.2f} ₽"
 
+    # --- изменение списка ---
+    def _check_index(self, index: int) -> None:
+        if not 0 <= index < len(self.transactions):
+            raise ValueError(f"Нет траты с номером {index + 1}")
+
     def add(self, transaction: Transaction) -> None:
         self.transactions.append(transaction)
 
+    def get(self, index: int) -> Transaction:
+        self._check_index(index)
+        return self.transactions[index]
+
+    def replace(self, index: int, transaction: Transaction) -> Transaction:
+        """Заменяет трату по индексу на новую и возвращает старую."""
+        self._check_index(index)
+        old = self.transactions[index]
+        self.transactions[index] = transaction
+        return old
+
     def remove(self, index: int) -> Transaction:
         """Удаляет трату по индексу (с нуля) и возвращает её."""
-        if not 0 <= index < len(self.transactions):
-            raise ValueError(f"Нет траты с номером {index + 1}")
+        self._check_index(index)
         return self.transactions.pop(index)
 
+    # --- подсчёты и поиск ---
     def total(self) -> float:
         return round(sum(t.amount for t in self.transactions), 2)
 
@@ -97,3 +115,23 @@ class BudgetTracker:
     def filter_by_category(self, category: str) -> list[Transaction]:
         wanted = category.strip().lower()
         return [t for t in self.transactions if t.category == wanted]
+
+    def sorted_by(self, field: str, reverse: bool = False) -> list[tuple[int, Transaction]]:
+        """Траты, отсортированные по 'date' или 'amount', вместе с их номерами в истории."""
+        if field not in ("date", "amount"):
+            raise ValueError("Сортировать можно по date или amount")
+        numbered = list(enumerate(self.transactions, start=1))
+        return sorted(numbered, key=lambda pair: getattr(pair[1], field), reverse=reverse)
+
+    # --- месячный лимит ---
+    def set_limit(self, limit: float | None) -> None:
+        """Лимит трат на месяц; None — без лимита."""
+        if limit is not None:
+            limit = float(limit)
+            if not math.isfinite(limit) or limit <= 0:
+                raise ValueError("Лимит должен быть больше нуля")
+        self.monthly_limit = limit
+
+    def month_total(self, year: int, month: int) -> float:
+        return round(sum(t.amount for t in self.transactions
+                         if t.date.year == year and t.date.month == month), 2)
