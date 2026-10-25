@@ -7,14 +7,14 @@ class Transaction:
     """Одна трата: дата, категория, сумма и комментарий."""
 
     def __init__(self, date: dt.date | str, category: str, amount: float | str, comment: str = "") -> None:
-        self.date = self._parse_date(date)
-        self.category = self._parse_category(category)
-        self.amount = self._parse_amount(amount)
+        self.date = self.parse_date(date)
+        self.category = self.parse_category(category)
+        self.amount = self.parse_amount(amount)
         self.comment = str(comment).strip()
 
     # --- проверки: плохие данные → ValueError с понятным текстом ---
     @staticmethod
-    def _parse_date(value: dt.date | str) -> dt.date:
+    def parse_date(value: dt.date | str) -> dt.date:
         if isinstance(value, dt.date):
             return value
         try:
@@ -23,14 +23,14 @@ class Transaction:
             raise ValueError("Дата должна быть в формате ГГГГ-ММ-ДД, например 2026-10-24") from None
 
     @staticmethod
-    def _parse_category(value: str) -> str:
+    def parse_category(value: str) -> str:
         category = str(value).strip().lower()
         if not category:
             raise ValueError("Категория не может быть пустой")
         return category
 
     @staticmethod
-    def _parse_amount(value: float | str) -> float:
+    def parse_amount(value: float | str) -> float:
         try:
             amount = float(str(value).replace(",", "."))
         except ValueError:
